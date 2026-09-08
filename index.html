@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 /* ==================== RESET & ROOT ==================== */
 :root{
@@ -115,10 +115,6 @@ h1.brand{font-family:var(--font-head);font-weight:800;font-size:26px;color:var(-
 #reader{flex:1;overflow:hidden;background:#000;}
 #reader video{width:100%!important;height:100%!important;object-fit:cover!important;}
 .scan-status{padding:12px 18px;text-align:center;font-size:13px;color:rgba(255,255,255,.6);flex-shrink:0;}
-.scan-controls{display:flex;justify-content:center;padding:10px 18px 0;}
-.torch-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;
-  border-radius:12px;padding:10px 24px;font-size:14px;cursor:pointer;}
-.torch-btn.on{background:var(--yellow);color:#1A1B1E;border-color:var(--yellow);}
 .flash-ok{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;
   transition:opacity .08s;z-index:99;}
 .flash-ok.show{opacity:.85;transition:opacity 0s;}
@@ -248,9 +244,6 @@ h1.brand{font-family:var(--font-head);font-weight:800;font-size:26px;color:var(-
     <div style="width:24px;"></div>
   </div>
   <div id="reader"></div>
-  <div class="scan-controls">
-    <button class="torch-btn" id="torchBtn" onclick="toggleTorch()">🔦 ไฟฉาย</button>
-  </div>
   <div class="scan-status" id="scanStatus">กำลังเปิดกล้อง...</div>
 </div>
 
@@ -572,36 +565,72 @@ async function startScan(mode){
     (mode==='out'?'เบิกของ':'รับของ') + ' · สแกน';
   document.getElementById('scanStatus').textContent = 'กำลังเปิดกล้อง...';
   go('scan');
+  await initZxingScanner();
+}
 
+async function initZxingScanner(){
   try{
-    if(scanner) try{ await scanner.stop(); } catch(e){}
-    scanner = new Html5Qrcode('reader', {
-      formatsToSupport: [
-        Html5QrcodeSupportedFormats.QR_CODE,
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.ITF,
-      ],
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    if(scanner){
+      try{ scanner.reset(); } catch(e){}
+      scanner = null;
+    }
+
+    const hints = new Map();
+    const formats = [
+      ZXing.BarcodeFormat.QR_CODE,
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.DATA_MATRIX,
+      ZXing.BarcodeFormat.ITF,
+    ];
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+
+    scanner = new ZXing.BrowserMultiFormatReader(hints, 300);
+
+    // หา video element ใน reader div
+    const readerDiv = document.getElementById('reader');
+    readerDiv.innerHTML = '<video id="zxingVideo" style="width:100%;height:100%;object-fit:cover;"></video>';
+
+    // ขอ camera stream เอง เพื่อจัดการ iOS ได้ดีขึ้น
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
     });
-    await scanner.start(
-      { facingMode: 'environment' },
-      { fps:10, qrbox: { width:280, height:140 }, aspectRatio:1.5 },
-      onScanSuccess,
-      ()=>{}
-    );
+
+    const videoEl = document.getElementById('zxingVideo');
+    videoEl.srcObject = stream;
+    videoEl.setAttribute('playsinline', true); // iOS ต้องการ
+    videoEl.setAttribute('autoplay', true);
+    videoEl.play();
+
+    // เก็บ stream ไว้หยุดทีหลัง
+    scanner._stream = stream;
+
     document.getElementById('scanStatus').textContent = 'จ่อกล้องไปที่ QR หรือบาร์โค้ด';
+
+    // เริ่ม decode loop
+    scanner.decodeFromVideoElement(videoEl, (result, err) => {
+      if(result){
+        onScanSuccess(result.getText());
+      }
+    });
+
   } catch(err){
-    document.getElementById('scanStatus').textContent = '❌ เปิดกล้องไม่ได้: ' + err;
+    document.getElementById('scanStatus').textContent = '❌ เปิดกล้องไม่ได้: ' + err.message;
   }
 }
+
+let _scanHandled = false;
 async function onScanSuccess(decodedText){
+  if(_scanHandled) return; // กัน scan ซ้ำ
+  _scanHandled = true;
+
   // หยุดสแกน
-  if(scanner) try{ await scanner.stop(); } catch(e){}
+  await stopScanner();
 
   playBeep();
   flashScreen();
@@ -616,34 +645,34 @@ async function onScanSuccess(decodedText){
     scannedItem = res.item;
     openConfirm();
   } else {
-    // ไม่พบ → หน้าเพิ่มสินค้าใหม่ (scanned mode)
     openNewItemFromScan(scannedSku);
   }
+  _scanHandled = false;
 }
-let torchOn = false;
-function toggleTorch(){
-  const video = document.querySelector('#reader video');
-  if(!video || !video.srcObject){ showToast('เปิดกล้องก่อน', true); return; }
-  const track = video.srcObject.getVideoTracks()[0];
-  if(!track){ showToast('ไม่พบกล้อง', true); return; }
-  torchOn = !torchOn;
-  track.applyConstraints({ advanced: [{ torch: torchOn }] })
-    .then(()=>{
-      const btn = document.getElementById('torchBtn');
-      btn.classList.toggle('on', torchOn);
-      btn.textContent = torchOn ? '🔦 ปิดไฟ' : '🔦 ไฟฉาย';
-    })
-    .catch(()=>{
-      torchOn = !torchOn;
-      showToast('กล้องนี้ไม่รองรับไฟฉาย', true);
-    });
+
+async function stopScanner(){
+  try{
+    if(scanner){
+      scanner.reset();
+      if(scanner._stream){
+        scanner._stream.getTracks().forEach(t=>t.stop());
+      }
+    }
+  } catch(e){}
+  scanner = null;
+  // clear video element
+  const readerDiv = document.getElementById('reader');
+  if(readerDiv) readerDiv.innerHTML = '';
 }
+
 async function stopScanAndBack(){
-  torchOn = false;
-  const btn = document.getElementById('torchBtn');
-  if(btn){ btn.classList.remove('on'); btn.textContent='🔦 ไฟฉาย'; }
-  if(scanner) try{ await scanner.stop(); } catch(e){}
+  await stopScanner();
   goHome();
+}
+
+function goBackFromConfirm(){
+  _scanHandled = false;
+  startScan(currentMode);
 }
 
 // ==================== CONFIRM ====================
@@ -662,9 +691,6 @@ function openConfirm(){
   document.getElementById('confirmNote').value = '';
   updateConfirmBtn();
   go('confirm');
-}
-function goBackFromConfirm(){
-  startScan(currentMode);
 }
 function changeQty(d){
   qty = Math.max(1, qty + d);
