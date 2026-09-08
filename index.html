@@ -115,6 +115,10 @@ h1.brand{font-family:var(--font-head);font-weight:800;font-size:26px;color:var(-
 #reader{flex:1;overflow:hidden;background:#000;}
 #reader video{width:100%!important;height:100%!important;object-fit:cover!important;}
 .scan-status{padding:12px 18px;text-align:center;font-size:13px;color:rgba(255,255,255,.6);flex-shrink:0;}
+.scan-controls{display:flex;justify-content:center;padding:10px 18px 0;}
+.torch-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;
+  border-radius:12px;padding:10px 24px;font-size:14px;cursor:pointer;}
+.torch-btn.on{background:var(--yellow);color:#1A1B1E;border-color:var(--yellow);}
 .flash-ok{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;
   transition:opacity .08s;z-index:99;}
 .flash-ok.show{opacity:.85;transition:opacity 0s;}
@@ -244,6 +248,9 @@ h1.brand{font-family:var(--font-head);font-weight:800;font-size:26px;color:var(-
     <div style="width:24px;"></div>
   </div>
   <div id="reader"></div>
+  <div class="scan-controls">
+    <button class="torch-btn" id="torchBtn" onclick="toggleTorch()">🔦 ไฟฉาย</button>
+  </div>
   <div class="scan-status" id="scanStatus">กำลังเปิดกล้อง...</div>
 </div>
 
@@ -568,21 +575,22 @@ async function startScan(mode){
 
   try{
     if(scanner) try{ await scanner.stop(); } catch(e){}
-    scanner = new Html5Qrcode('reader');
+    scanner = new Html5Qrcode('reader', {
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.ITF,
+      ],
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    });
     await scanner.start(
       { facingMode: 'environment' },
-      { fps:10, qrbox: { width:250, height:250 },
-        aspectRatio: 1.0,
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.QR_CODE,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E
-        ]
-      },
+      { fps:10, qrbox: { width:280, height:140 }, aspectRatio:1.5 },
       onScanSuccess,
       ()=>{}
     );
@@ -612,7 +620,28 @@ async function onScanSuccess(decodedText){
     openNewItemFromScan(scannedSku);
   }
 }
+let torchOn = false;
+function toggleTorch(){
+  const video = document.querySelector('#reader video');
+  if(!video || !video.srcObject){ showToast('เปิดกล้องก่อน', true); return; }
+  const track = video.srcObject.getVideoTracks()[0];
+  if(!track){ showToast('ไม่พบกล้อง', true); return; }
+  torchOn = !torchOn;
+  track.applyConstraints({ advanced: [{ torch: torchOn }] })
+    .then(()=>{
+      const btn = document.getElementById('torchBtn');
+      btn.classList.toggle('on', torchOn);
+      btn.textContent = torchOn ? '🔦 ปิดไฟ' : '🔦 ไฟฉาย';
+    })
+    .catch(()=>{
+      torchOn = !torchOn;
+      showToast('กล้องนี้ไม่รองรับไฟฉาย', true);
+    });
+}
 async function stopScanAndBack(){
+  torchOn = false;
+  const btn = document.getElementById('torchBtn');
+  if(btn){ btn.classList.remove('on'); btn.textContent='🔦 ไฟฉาย'; }
   if(scanner) try{ await scanner.stop(); } catch(e){}
   goHome();
 }
