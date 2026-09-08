@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1A1B1E">
+<title>คลังช่าง</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+/* ==================== RESET & ROOT ==================== */
+:root{
+  --bg:#1A1B1E; --surface:#232428; --surface-2:#2C2E33;
+  --line:#3A3C42; --yellow:#FFC72C; --orange:#FF5A3C;
+  --green:#3ECF8E; --text:#F2F0EB; --muted:#8B8D92;
+  --font-head:'Barlow Condensed',sans-serif;
+  --font-body:'Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{
+  height:100%;background:var(--bg);color:var(--text);
+  font-family:var(--font-body);-webkit-tap-highlight-color:transparent;
+  overflow:hidden;
+}
+button,input,select{font-family:var(--font-body);outline:none;}
+.screen{display:none;flex-direction:column;height:100%;position:absolute;inset:0;
+  background:var(--bg);z-index:1;overflow:hidden;}
+.screen.active{display:flex;}
+
+/* ==================== TOPBAR ==================== */
+.topbar{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px 12px;border-bottom:1px solid var(--line);flex-shrink:0;}
+.topbar .back{color:var(--muted);font-size:22px;cursor:pointer;width:28px;text-align:left;}
+.headline{font-family:var(--font-head);font-weight:700;font-size:20px;}
+
+/* ==================== LOGIN ==================== */
+#login{justify-content:center;align-items:center;padding:40px 28px;gap:24px;
+  background:linear-gradient(180deg,rgba(255,199,44,.06),transparent 40%),var(--bg);}
+.bolt-row{display:flex;align-items:center;gap:10px;}
+.bolt{width:34px;height:34px;background:var(--yellow);
+  clip-path:polygon(60% 0%,30% 45%,55% 45%,25% 100%,75% 50%,48% 50%);}
+h1.brand{font-family:var(--font-head);font-weight:800;font-size:26px;color:var(--yellow);}
+.tagline{color:var(--muted);font-size:14px;text-align:center;line-height:1.5;}
+.dots{display:flex;gap:14px;margin:4px 0;}
+.dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);transition:all .12s;}
+.dot.filled{background:var(--yellow);border-color:var(--yellow);}
+.dot.wrong{border-color:var(--orange);animation:shake .35s;}
+@keyframes shake{25%{transform:translateX(-4px)}50%{transform:translateX(4px)}75%{transform:translateX(-2px)}}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:300px;}
+.key{background:var(--surface);border:1px solid var(--line);color:var(--text);
+  font-size:22px;font-weight:600;padding:16px 0;border-radius:12px;text-align:center;
+  cursor:pointer;user-select:none;-webkit-user-select:none;transition:background .1s;}
+.key:active{background:var(--surface-2);}
+.key.ghost{background:transparent;border:none;color:var(--muted);}
+.login-error{color:var(--orange);font-size:13px;height:18px;text-align:center;}
+
+/* ==================== HOME ==================== */
+.body-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 18px 90px;}
+.alert{background:rgba(255,90,60,.12);border:1px solid rgba(255,90,60,.4);
+  border-radius:14px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start;
+  margin-bottom:18px;cursor:pointer;}
+.alert .t{font-size:14px;font-weight:600;color:var(--orange);}
+.alert .s{font-size:12px;color:var(--muted);margin-top:2px;}
+.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.action-btn{border-radius:16px;padding:20px 14px;display:flex;flex-direction:column;gap:8px;
+  cursor:pointer;border:none;text-align:left;}
+.action-btn.out{background:var(--yellow);color:#1A1B1E;}
+.action-btn.in{background:var(--surface);border:1px solid var(--line);color:var(--text);}
+.action-btn .ic{font-size:24px;}
+.action-btn .label{font-family:var(--font-head);font-weight:700;font-size:18px;}
+.action-btn .sub{font-size:11px;opacity:.75;}
+.manual-add-link{display:flex;align-items:center;gap:12px;
+  background:var(--surface);border:1px dashed var(--line);border-radius:14px;
+  padding:14px 16px;margin-bottom:18px;cursor:pointer;}
+.manual-add-link .t{font-size:13px;font-weight:600;}
+.manual-add-link .s{font-size:11px;color:var(--muted);margin-top:1px;}
+.manual-add-link .chev{margin-left:auto;color:var(--muted);font-size:18px;}
+.stat-row{display:flex;gap:8px;margin-bottom:18px;}
+.stat{flex:1;background:var(--surface);border:1px solid var(--line);
+  border-radius:12px;padding:12px;}
+.stat .n{font-family:var(--font-head);font-size:24px;font-weight:800;}
+.stat .l{font-size:10px;color:var(--muted);margin-top:2px;}
+.section-title{font-family:var(--font-head);font-weight:700;font-size:15px;
+  color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;}
+.item-row{display:flex;align-items:center;gap:12px;background:var(--surface);
+  border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;}
+.item-thumb{width:40px;height:40px;border-radius:10px;background:var(--surface-2);
+  display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.item-info{flex:1;min-width:0;}
+.item-info .name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.item-info .meta{font-size:11px;color:var(--muted);margin-top:1px;}
+.stock-badge{font-size:12px;font-weight:700;padding:4px 10px;border-radius:8px;
+  font-family:var(--font-head);white-space:nowrap;}
+.stock-badge.low{background:rgba(255,90,60,.18);color:var(--orange);}
+.stock-badge.ok{background:rgba(62,207,142,.15);color:var(--green);}
+.stock-badge.mid{background:rgba(255,199,44,.15);color:var(--yellow);}
+
+/* ==================== BOTTOM NAV ==================== */
+.bottom-nav{display:flex;padding:10px 0 14px;background:var(--surface);
+  border-top:1px solid var(--line);flex-shrink:0;}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  color:var(--muted);font-size:10px;cursor:pointer;border:none;background:none;}
+.nav-btn.active{color:var(--yellow);}
+.nav-btn .ic{font-size:18px;}
+
+/* ==================== SCAN ==================== */
+#scan{background:#000;z-index:5;}
+.scan-top{display:flex;justify-content:space-between;align-items:center;
+  padding:14px 18px;z-index:2;flex-shrink:0;}
+.scan-top .x{color:#fff;font-size:24px;cursor:pointer;}
+.scan-mode-label{font-family:var(--font-head);font-weight:700;font-size:16px;color:#fff;}
+#reader{flex:1;overflow:hidden;background:#000;}
+#reader video{width:100%!important;height:100%!important;object-fit:cover!important;}
+.scan-status{padding:12px 18px;text-align:center;font-size:13px;color:rgba(255,255,255,.6);flex-shrink:0;}
+.flash-ok{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;
+  transition:opacity .08s;z-index:99;}
+.flash-ok.show{opacity:.85;transition:opacity 0s;}
+
+/* ==================== CONFIRM ==================== */
+.confirm-hero{padding:20px 18px 8px;text-align:center;}
+.confirm-icon{width:60px;height:60px;border-radius:14px;background:var(--surface-2);
+  display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px;}
+.confirm-name{font-family:var(--font-head);font-size:22px;font-weight:700;}
+.confirm-sku{color:var(--muted);font-size:12px;margin-top:2px;font-family:monospace;}
+.confirm-card{background:var(--surface);border:1px solid var(--line);
+  border-radius:14px;margin:14px 18px;padding:14px;}
+.confirm-row{display:flex;justify-content:space-between;padding:7px 0;font-size:13px;}
+.confirm-row .k{color:var(--muted);}
+.step-label{text-align:center;color:var(--muted);font-size:11px;margin-bottom:4px;}
+.stepper{display:flex;align-items:center;justify-content:center;gap:18px;margin:10px 0;}
+.step-btn{width:50px;height:50px;border-radius:14px;background:var(--surface);
+  border:1px solid var(--line);color:var(--text);font-size:24px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.step-val{font-family:var(--font-head);font-size:36px;font-weight:800;min-width:60px;text-align:center;}
+.note-input{margin:0 18px;background:var(--surface);border:1px solid var(--line);
+  color:var(--text);padding:12px 14px;border-radius:12px;font-size:13px;width:calc(100% - 36px);}
+.note-input::placeholder{color:var(--muted);}
+.confirm-actions{padding:18px;margin-top:auto;flex-shrink:0;}
+.btn-primary{width:100%;padding:16px 0;border-radius:14px;border:none;
+  font-family:var(--font-head);font-weight:700;font-size:17px;cursor:pointer;margin-bottom:8px;}
+.btn-primary.withdraw{background:var(--yellow);color:#1A1B1E;}
+.btn-primary.receive{background:var(--green);color:#0E1B14;}
+.btn-primary:disabled{opacity:.5;cursor:default;}
+.btn-secondary{width:100%;padding:13px 0;border-radius:14px;
+  background:transparent;border:1px solid var(--line);color:var(--muted);
+  font-size:14px;cursor:pointer;}
+
+/* ==================== NEW ITEM FORM ==================== */
+.unknown-hero{padding:22px 22px 6px;text-align:center;}
+.unknown-icon{width:60px;height:60px;border-radius:14px;
+  background:rgba(255,199,44,.12);display:flex;align-items:center;justify-content:center;
+  font-size:28px;margin:0 auto 12px;}
+.unknown-title{font-family:var(--font-head);font-size:20px;font-weight:700;}
+.unknown-sub{color:var(--muted);font-size:12px;margin-top:4px;line-height:1.5;}
+.unknown-code{font-family:monospace;font-size:12px;color:var(--yellow);
+  background:var(--surface-2);display:inline-block;padding:4px 10px;border-radius:8px;margin-top:8px;}
+.form-group{margin-bottom:12px;}
+.form-label{font-size:12px;color:var(--muted);margin-bottom:5px;display:block;}
+.form-input,.form-select{width:100%;background:var(--surface);border:1px solid var(--line);
+  color:var(--text);font-size:14px;padding:12px 14px;border-radius:12px;}
+.form-input::placeholder{color:var(--muted);}
+.form-select{appearance:none;-webkit-appearance:none;}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.checkbox-row{display:flex;align-items:center;gap:10px;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;font-size:13px;cursor:pointer;}
+.checkbox-row input{width:17px;height:17px;accent-color:var(--yellow);}
+
+/* ==================== STOCK LIST ==================== */
+.search-bar{display:flex;align-items:center;gap:10px;background:var(--surface);
+  border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-bottom:12px;}
+.search-bar input{background:transparent;border:none;color:var(--text);
+  font-size:14px;width:100%;outline:none;}
+.search-bar input::placeholder{color:var(--muted);}
+.chips{display:flex;gap:7px;overflow-x:auto;margin-bottom:14px;padding-bottom:2px;flex-shrink:0;}
+.chip{background:var(--surface);border:1px solid var(--line);
+  padding:6px 12px;border-radius:20px;font-size:12px;
+  white-space:nowrap;cursor:pointer;color:var(--muted);}
+.chip.active{background:var(--yellow);color:#1A1B1E;border-color:var(--yellow);font-weight:600;}
+.add-fab{width:28px;height:28px;border-radius:9px;background:var(--yellow);
+  color:#1A1B1E;display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;cursor:pointer;}
+
+/* ==================== TOAST ==================== */
+.toast{position:fixed;left:18px;right:18px;bottom:70px;background:var(--green);
+  color:#0E1B14;padding:14px 16px;border-radius:12px;font-weight:600;font-size:14px;
+  display:flex;align-items:center;gap:10px;z-index:50;
+  opacity:0;transform:translateY(12px);transition:all .25s;pointer-events:none;}
+.toast.error{background:var(--orange);color:#fff;}
+.toast.show{opacity:1;transform:translateY(0);}
+
+/* ==================== LOADING ==================== */
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-overlay{position:absolute;inset:0;background:rgba(26,27,30,.85);
+  display:flex;align-items:center;justify-content:center;z-index:10;flex-direction:column;gap:12px;}
+.loading-text{font-size:14px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<!-- FLASH -->
+<div class="flash-ok" id="flashOk"></div>
+
+<!-- TOAST (global) -->
+<div class="toast" id="toast"></div>
+
+<!-- ===== SCREEN: LOGIN ===== -->
+<div class="screen active" id="login">
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:40px 28px;gap:20px;">
+    <div class="bolt-row"><div class="bolt"></div><h1 class="brand">คลังช่าง</h1></div>
+    <div class="tagline">ระบบคงคลังหน้างาน<br>สแกน เบิก รับ จบในที่เดียว</div>
+    <div class="dots" id="dots"></div>
+    <div class="login-error" id="loginError"></div>
+    <div class="keypad" id="keypad"></div>
+  </div>
+</div>
+
+<!-- ===== SCREEN: HOME ===== -->
+<div class="screen" id="home">
+  <div class="topbar">
+    <div class="headline">สวัสดี, ช่างแบงค์</div>
+    <div style="font-size:12px;color:var(--muted);background:var(--surface-2);padding:5px 10px;border-radius:16px;">🔊 เสียงเปิด</div>
+  </div>
+  <div class="body-scroll" id="homeBody">
+    <!-- filled by JS -->
+  </div>
+  <div class="bottom-nav">
+    <button class="nav-btn active" onclick="goHome()"><div class="ic">🏠</div>หน้าแรก</button>
+    <button class="nav-btn" onclick="goStock()"><div class="ic">📦</div>คลังสินค้า</button>
+    <button class="nav-btn" onclick="logout()"><div class="ic">🔒</div>ออกจากระบบ</button>
+  </div>
+</div>
+
+<!-- ===== SCREEN: SCAN ===== -->
+<div class="screen" id="scan">
+  <div class="scan-top">
+    <div class="x" onclick="stopScanAndBack()">✕</div>
+    <div class="scan-mode-label" id="scanModeLabel">เบิกของ · สแกน</div>
+    <div style="width:24px;"></div>
+  </div>
+  <div id="reader"></div>
+  <div class="scan-status" id="scanStatus">กำลังเปิดกล้อง...</div>
+</div>
+
+<!-- ===== SCREEN: CONFIRM ===== -->
+<div class="screen" id="confirm">
+  <div class="topbar">
+    <div class="back" onclick="goBackFromConfirm()">←</div>
+    <div class="headline" id="confirmTitle">ยืนยันการเบิก</div>
+    <div style="width:28px;"></div>
+  </div>
+  <div class="body-scroll">
+    <div class="confirm-hero">
+      <div class="confirm-icon" id="confirmIcon">⚡</div>
+      <div class="confirm-name" id="confirmName">—</div>
+      <div class="confirm-sku" id="confirmSku">—</div>
+    </div>
+    <div class="confirm-card" id="confirmDetails"></div>
+    <div class="step-label">ระบุจำนวน</div>
+    <div class="stepper">
+      <div class="step-btn" onclick="changeQty(-1)">−</div>
+      <div class="step-val" id="qtyVal">1</div>
+      <div class="step-btn" onclick="changeQty(1)">+</div>
+    </div>
+    <input class="note-input" id="confirmNote" placeholder="หมายเหตุ / งานที่ใช้ (ไม่จำเป็น)">
+  </div>
+  <div class="confirm-actions">
+    <button class="btn-primary" id="confirmBtn" onclick="submitConfirm()">ยืนยัน</button>
+    <button class="btn-secondary" onclick="goBackFromConfirm()">ย้อนกลับ</button>
+  </div>
+</div>
+
+<!-- ===== SCREEN: NEW ITEM ===== -->
+<div class="screen" id="newitem">
+  <div class="topbar">
+    <div class="back" onclick="go('home')">←</div>
+    <div class="headline">เพิ่มสินค้าใหม่</div>
+    <div style="width:28px;"></div>
+  </div>
+  <div class="body-scroll">
+    <div class="unknown-hero">
+      <div class="unknown-icon" id="newItemIcon">✏️</div>
+      <div class="unknown-title" id="newItemTitle">เพิ่มสินค้าด้วยตนเอง</div>
+      <div class="unknown-sub" id="newItemSub">กรอกข้อมูลสินค้าเพื่อเพิ่มเข้าคลัง</div>
+      <div class="unknown-code" id="newItemCode" style="display:none;"></div>
+    </div>
+    <div style="padding:14px 18px 0;">
+      <div class="form-group">
+        <label class="form-label">ชื่อสินค้า *</label>
+        <input class="form-input" id="fName" placeholder="เช่น เบรกเกอร์ 20A">
+      </div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label class="form-label">หมวดหมู่</label>
+          <select class="form-select" id="fCategory">
+            <option>เบรกเกอร์</option><option>สายไฟ</option>
+            <option>ปลั๊ก/สวิตช์</option><option>อุปกรณ์ยึด</option><option>อื่นๆ</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">หน่วยนับ</label>
+          <select class="form-select" id="fUnit">
+            <option>ชิ้น</option><option>ตัว</option><option>เมตร</option>
+            <option>ม้วน</option><option>เส้น</option><option>กล่อง</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label class="form-label">จำนวนเริ่มต้น</label>
+          <input class="form-input" id="fQty" type="number" placeholder="0" value="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">จุดสั่งซื้อขั้นต่ำ</label>
+          <input class="form-input" id="fReorder" type="number" placeholder="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ที่เก็บ</label>
+        <input class="form-input" id="fLocation" placeholder="เช่น ชั้น A2 / รถกระบะ">
+      </div>
+      <div class="form-group" id="printQrOption" style="display:none;">
+        <label class="checkbox-row">
+          <input type="checkbox" id="fPrintQr" checked>
+          <span>สร้าง QR สำหรับติดสินค้านี้</span>
+        </label>
+      </div>
+    </div>
+  </div>
+  <div class="confirm-actions">
+    <button class="btn-primary receive" id="saveNewBtn" onclick="saveNewItem()">บันทึกและเพิ่มเข้าคลัง</button>
+    <button class="btn-secondary" onclick="go('home')">ยกเลิก</button>
+  </div>
+</div>
+
+<!-- ===== SCREEN: STOCK LIST ===== -->
+<div class="screen" id="stock">
+  <div class="topbar">
+    <div class="back" onclick="goHome()">←</div>
+    <div class="headline">คลังสินค้า</div>
+    <div class="add-fab" onclick="openManualAdd()">＋</div>
+  </div>
+  <div class="body-scroll">
+    <div class="search-bar">
+      <span>🔍</span>
+      <input id="searchInput" placeholder="ค้นหาชื่อ หรือ SKU..." oninput="debounceSearch()">
+    </div>
+    <div class="chips" id="categoryChips"></div>
+    <div id="stockList">
+      <div style="text-align:center;padding:40px;color:var(--muted);">กำลังโหลด...</div>
+    </div>
+  </div>
+  <div class="bottom-nav">
+    <button class="nav-btn" onclick="goHome()"><div class="ic">🏠</div>หน้าแรก</button>
+    <button class="nav-btn active" onclick="goStock()"><div class="ic">📦</div>คลังสินค้า</button>
+    <button class="nav-btn" onclick="logout()"><div class="ic">🔒</div>ออกจากระบบ</button>
+  </div>
+</div>
+
+<script>
+// ==================== CONFIG ====================
+// ⚠️ เปลี่ยน URL นี้เป็น Apps Script Web App URL ของคุณ
+const API_URL = 'https://script.google.com/macros/s/AKfycbzivuZK7-Djuoiaacr2JU3oWjbjp62oGmcAPXPKCNROqhEioBkREealTWuhoYxWg32sxg/exec';
+
+// ==================== STATE ====================
+let currentMode = ''; // 'out' or 'in'
+let scannedItem = null;
+let scannedSku = '';
+let qty = 1;
+let token = '';
+let scanner = null;
+let searchTimer = null;
+let currentCategory = 'ทั้งหมด';
+const categories = ['ทั้งหมด','เบรกเกอร์','สายไฟ','ปลั๊ก/สวิตช์','อุปกรณ์ยึด','อื่นๆ'];
+const catIcons = {'เบรกเกอร์':'⚡','สายไฟ':'🧵','ปลั๊ก/สวิตช์':'🔌','อุปกรณ์ยึด':'🔩','อื่นๆ':'📦'};
+
+// ==================== AUDIO ====================
+function playBeep(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square'; osc.frequency.value = 1500;
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.12);
+  } catch(e){}
+}
+function flashScreen(){
+  const f = document.getElementById('flashOk');
+  f.classList.add('show');
+  setTimeout(()=>f.classList.remove('show'), 80);
+}
+
+// ==================== TOAST ====================
+function showToast(msg, isError){
+  const t = document.getElementById('toast');
+  t.textContent = (isError ? '❌ ' : '✅ ') + msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  requestAnimationFrame(()=>t.classList.add('show'));
+  setTimeout(()=>t.classList.remove('show'), 2000);
+}
+
+// ==================== NAVIGATION ====================
+function go(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function goHome(){ loadDashboard(); go('home'); }
+function goStock(){ loadStock(); go('stock'); }
+function logout(){ token=''; go('login'); resetDots(); }
+
+// ==================== API CALLS ====================
+async function api(action, data={}){
+  const url = API_URL + '?action=' + action;
+  try{
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(Object.assign({ action }, data))
+    });
+    return await res.json();
+  } catch(err){
+    return { ok: false, error: 'เชื่อมต่อ server ไม่ได้: ' + err.message };
+  }
+}
+
+// ==================== LOGIN ====================
+let entered = [];
+function buildKeypad(){
+  const dotsEl = document.getElementById('dots');
+  dotsEl.innerHTML = Array(4).fill('<div class="dot"></div>').join('');
+  const pad = document.getElementById('keypad');
+  pad.innerHTML = '';
+  const keys = [1,2,3,4,5,6,7,8,9,'',0,'⌫'];
+  keys.forEach(k=>{
+    const d = document.createElement('div');
+    d.className = 'key' + (k==='' ? ' ghost' : '');
+    d.textContent = k;
+    if(k !== ''){
+      d.onclick = ()=> handleKey(k);
+    }
+    pad.appendChild(d);
+  });
+}
+function handleKey(k){
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '';
+  if(k === '⌫'){
+    if(entered.length > 0){
+      entered.pop();
+      updateDots();
+    }
+    return;
+  }
+  if(entered.length < 4){
+    entered.push(k);
+    updateDots();
+    if(entered.length === 4){
+      doLogin();
+    }
+  }
+}
+function updateDots(){
+  document.querySelectorAll('#dots .dot').forEach((d,i)=>{
+    d.classList.toggle('filled', i < entered.length);
+  });
+}
+function resetDots(){
+  entered = [];
+  updateDots();
+  document.getElementById('loginError').textContent = '';
+}
+async function doLogin(){
+  const code = entered.join('');
+  const res = await api('login', { passcode: code });
+  if(res.ok){
+    token = res.token;
+    goHome();
+  } else {
+    document.querySelectorAll('#dots .dot').forEach(d=>{
+      d.classList.remove('filled'); d.classList.add('wrong');
+    });
+    document.getElementById('loginError').textContent = res.error || 'รหัสไม่ถูก';
+    setTimeout(()=>{
+      document.querySelectorAll('#dots .dot').forEach(d=>d.classList.remove('wrong'));
+      resetDots();
+    }, 500);
+  }
+}
+
+// ==================== DASHBOARD ====================
+async function loadDashboard(){
+  const body = document.getElementById('homeBody');
+  body.innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted);"><div class="spinner"></div><br>กำลังโหลด...</div>';
+  const res = await api('getDashboard');
+  if(!res.ok){
+    body.innerHTML = '<div style="text-align:center;padding:60px;color:var(--orange);">โหลดไม่สำเร็จ<br>'+res.error+'</div>';
+    return;
+  }
+
+  let html = '';
+
+  // low stock alert
+  if(res.low_stock_count > 0){
+    const names = res.low_stock_items.slice(0,3).map(i=>i.name+' เหลือ '+i.qty+' '+i.unit).join(' · ');
+    html += `<div class="alert" onclick="goStock()">
+      <div style="font-size:20px;">⚠️</div>
+      <div><div class="t">ของใกล้หมด ${res.low_stock_count} รายการ</div>
+      <div class="s">${names}</div></div></div>`;
+  }
+
+  // action grid
+  html += `<div class="action-grid">
+    <button class="action-btn out" onclick="startScan('out')">
+      <div class="ic">📤</div><div class="label">เบิกของ</div>
+      <div class="sub">สแกน QR เพื่อลดสต็อก</div></button>
+    <button class="action-btn in" onclick="startScan('in')">
+      <div class="ic">📥</div><div class="label">รับของ</div>
+      <div class="sub">สแกน QR เพื่อเพิ่มสต็อก</div></button></div>`;
+
+  // manual add
+  html += `<div class="manual-add-link" onclick="openManualAdd()">
+    <span style="font-size:18px;">✏️</span>
+    <div><div class="t">เพิ่มสินค้าด้วยตนเอง</div>
+    <div class="s">สำหรับของที่ไม่มี QR หรือบาร์โค้ด</div></div>
+    <span class="chev">›</span></div>`;
+
+  // stats
+  html += `<div class="stat-row">
+    <div class="stat"><div class="n">${res.total_items}</div><div class="l">รายการทั้งหมด</div></div>
+    <div class="stat"><div class="n" style="color:var(--orange)">${res.low_stock_count}</div><div class="l">ใกล้หมด</div></div>
+    <div class="stat"><div class="n">${res.today_count}</div><div class="l">รายการวันนี้</div></div></div>`;
+
+  // recent logs
+  if(res.recent_logs.length > 0){
+    html += `<div class="section-title"><span>ทำรายการล่าสุด</span>
+      <span style="color:var(--yellow);cursor:pointer;" onclick="goStock()">ดูทั้งหมด</span></div>`;
+    res.recent_logs.slice(0,5).forEach(log=>{
+      const icon = log.action==='withdraw'?'📤':(log.action==='receive'?'📥':'🆕');
+      const actionTh = log.action==='withdraw'?'เบิกไป':(log.action==='receive'?'รับเข้า':'เพิ่มใหม่');
+      const absQty = Math.abs(log.qty_change);
+      const badgeClass = log.qty_after <= 5 ? 'low' : (log.qty_after <= 10 ? 'mid' : 'ok');
+      html += `<div class="item-row" onclick="goStock()">
+        <div class="item-thumb">${icon}</div>
+        <div class="item-info"><div class="name">${log.name}</div>
+        <div class="meta">${actionTh} ${absQty} · ${log.note||''}</div></div>
+        <div class="stock-badge ${badgeClass}">คงเหลือ ${log.qty_after}</div></div>`;
+    });
+  }
+
+  body.innerHTML = html;
+}
+
+// ==================== SCANNER ====================
+async function startScan(mode){
+  currentMode = mode;
+  document.getElementById('scanModeLabel').textContent =
+    (mode==='out'?'เบิกของ':'รับของ') + ' · สแกน';
+  document.getElementById('scanStatus').textContent = 'กำลังเปิดกล้อง...';
+  go('scan');
+
+  try{
+    if(scanner) try{ await scanner.stop(); } catch(e){}
+    scanner = new Html5Qrcode('reader');
+    await scanner.start(
+      { facingMode: 'environment' },
+      { fps:10, qrbox: { width:250, height:250 },
+        aspectRatio: 1.0,
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E
+        ]
+      },
+      onScanSuccess,
+      ()=>{}
+    );
+    document.getElementById('scanStatus').textContent = 'จ่อกล้องไปที่ QR หรือบาร์โค้ด';
+  } catch(err){
+    document.getElementById('scanStatus').textContent = '❌ เปิดกล้องไม่ได้: ' + err;
+  }
+}
+async function onScanSuccess(decodedText){
+  // หยุดสแกน
+  if(scanner) try{ await scanner.stop(); } catch(e){}
+
+  playBeep();
+  flashScreen();
+  if(navigator.vibrate) navigator.vibrate(100);
+
+  scannedSku = decodedText.trim();
+  document.getElementById('scanStatus').textContent = 'พบรหัส: ' + scannedSku;
+
+  // ค้นหาสินค้าในชีท
+  const res = await api('getItemBySku', { sku: scannedSku });
+  if(res.ok && res.found){
+    scannedItem = res.item;
+    openConfirm();
+  } else {
+    // ไม่พบ → หน้าเพิ่มสินค้าใหม่ (scanned mode)
+    openNewItemFromScan(scannedSku);
+  }
+}
+async function stopScanAndBack(){
+  if(scanner) try{ await scanner.stop(); } catch(e){}
+  goHome();
+}
+
+// ==================== CONFIRM ====================
+function openConfirm(){
+  qty = 1;
+  const item = scannedItem;
+  document.getElementById('confirmTitle').textContent = currentMode==='out'?'ยืนยันการเบิก':'ยืนยันการรับ';
+  document.getElementById('confirmIcon').textContent = catIcons[item.category] || '📦';
+  document.getElementById('confirmName').textContent = item.name;
+  document.getElementById('confirmSku').textContent = item.sku;
+  document.getElementById('confirmDetails').innerHTML = `
+    <div class="confirm-row"><span class="k">คงเหลือปัจจุบัน</span><span>${item.qty} ${item.unit}</span></div>
+    <div class="confirm-row"><span class="k">ที่เก็บ</span><span>${item.location||'-'}</span></div>
+    <div class="confirm-row"><span class="k">จุดสั่งซื้อขั้นต่ำ</span><span>${item.reorder_point} ${item.unit}</span></div>`;
+  document.getElementById('qtyVal').textContent = qty;
+  document.getElementById('confirmNote').value = '';
+  updateConfirmBtn();
+  go('confirm');
+}
+function goBackFromConfirm(){
+  startScan(currentMode);
+}
+function changeQty(d){
+  qty = Math.max(1, qty + d);
+  document.getElementById('qtyVal').textContent = qty;
+  updateConfirmBtn();
+}
+function updateConfirmBtn(){
+  const btn = document.getElementById('confirmBtn');
+  const unit = scannedItem ? scannedItem.unit : '';
+  btn.textContent = (currentMode==='out'?'ยืนยันเบิก ':'ยืนยันรับ ') + qty + ' ' + unit;
+  btn.className = 'btn-primary ' + (currentMode==='out'?'withdraw':'receive');
+}
+async function submitConfirm(){
+  const btn = document.getElementById('confirmBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div>';
+  const note = document.getElementById('confirmNote').value;
+  const action = currentMode==='out' ? 'withdraw' : 'receive';
+  const res = await api(action, { sku: scannedItem.sku, qty, note });
+  btn.disabled = false;
+  updateConfirmBtn();
+  if(res.ok){
+    playBeep();
+    showToast('บันทึกแล้ว · คงเหลือ ' + res.qty_after + ' ' + scannedItem.unit);
+    if(res.is_low) setTimeout(()=>showToast('⚠️ '+scannedItem.name+' ใกล้หมด!', true), 2200);
+    setTimeout(()=>goHome(), 800);
+  } else {
+    showToast(res.error || 'เกิดข้อผิดพลาด', true);
+  }
+}
+
+// ==================== NEW ITEM ====================
+function openManualAdd(){
+  document.getElementById('newItemIcon').textContent = '✏️';
+  document.getElementById('newItemTitle').textContent = 'เพิ่มสินค้าด้วยตนเอง';
+  document.getElementById('newItemSub').textContent = 'สำหรับของที่ไม่มี QR หรือบาร์โค้ดติดอยู่';
+  document.getElementById('newItemCode').style.display = 'none';
+  document.getElementById('printQrOption').style.display = 'block';
+  scannedSku = '';
+  clearNewItemForm();
+  go('newitem');
+}
+function openNewItemFromScan(sku){
+  document.getElementById('newItemIcon').textContent = '❔';
+  document.getElementById('newItemTitle').textContent = 'ไม่พบสินค้านี้ในระบบ';
+  document.getElementById('newItemSub').innerHTML = 'ยังไม่เคยลงรหัสนี้ไว้<br>กรอกข้อมูลเพื่อเพิ่มเข้าคลังใหม่';
+  document.getElementById('newItemCode').style.display = 'inline-block';
+  document.getElementById('newItemCode').textContent = 'รหัสที่สแกนได้: ' + sku;
+  document.getElementById('printQrOption').style.display = 'none';
+  scannedSku = sku;
+  clearNewItemForm();
+  go('newitem');
+}
+function clearNewItemForm(){
+  document.getElementById('fName').value = '';
+  document.getElementById('fQty').value = '1';
+  document.getElementById('fReorder').value = '';
+  document.getElementById('fLocation').value = '';
+}
+async function saveNewItem(){
+  const name = document.getElementById('fName').value.trim();
+  if(!name){ showToast('ต้องระบุชื่อสินค้า', true); return; }
+  const btn = document.getElementById('saveNewBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div>';
+  const res = await api('createItem', {
+    sku: scannedSku || '',
+    name,
+    category: document.getElementById('fCategory').value,
+    unit: document.getElementById('fUnit').value,
+    qty: Number(document.getElementById('fQty').value) || 0,
+    reorder_point: Number(document.getElementById('fReorder').value) || 0,
+    location: document.getElementById('fLocation').value
+  });
+  btn.disabled = false;
+  btn.textContent = 'บันทึกและเพิ่มเข้าคลัง';
+  if(res.ok){
+    playBeep();
+    showToast('เพิ่ม "' + name + '" แล้ว (รหัส: ' + res.sku + ')');
+    setTimeout(()=>goHome(), 800);
+  } else {
+    showToast(res.error || 'บันทึกไม่สำเร็จ', true);
+  }
+}
+
+// ==================== STOCK LIST ====================
+function debounceSearch(){
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(()=>loadStock(), 300);
+}
+async function loadStock(){
+  const listEl = document.getElementById('stockList');
+  listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);"><div class="spinner"></div></div>';
+
+  // build chips
+  const chipsEl = document.getElementById('categoryChips');
+  chipsEl.innerHTML = categories.map(c=>
+    `<div class="chip${c===currentCategory?' active':''}" onclick="selectCategory('${c}')">${c}</div>`
+  ).join('');
+
+  const search = document.getElementById('searchInput').value.trim();
+  const res = await api('getItems', {
+    search: search || undefined,
+    category: currentCategory !== 'ทั้งหมด' ? currentCategory : undefined
+  });
+
+  if(!res.ok){
+    listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--orange);">โหลดไม่ได้</div>';
+    return;
+  }
+
+  if(res.items.length === 0){
+    listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">ไม่พบสินค้า</div>';
+    return;
+  }
+
+  listEl.innerHTML = res.items.map(item=>{
+    const icon = catIcons[item.category] || '📦';
+    const isLow = item.reorder_point > 0 && item.qty <= item.reorder_point;
+    const isMid = item.reorder_point > 0 && item.qty <= item.reorder_point * 2 && !isLow;
+    const badgeClass = isLow ? 'low' : (isMid ? 'mid' : 'ok');
+    return `<div class="item-row">
+      <div class="item-thumb">${icon}</div>
+      <div class="item-info"><div class="name">${item.name}</div>
+      <div class="meta">${item.sku} · ${item.location||'-'}</div></div>
+      <div class="stock-badge ${badgeClass}">${item.qty} ${item.unit}</div></div>`;
+  }).join('');
+}
+function selectCategory(cat){
+  currentCategory = cat;
+  loadStock();
+}
+
+// ==================== INIT ====================
+buildKeypad();
+</script>
+</body>
+</html>
